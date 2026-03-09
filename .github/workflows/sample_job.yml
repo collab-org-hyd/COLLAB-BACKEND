@@ -1,0 +1,8 @@
+name: Disabled Workflow
+on: [push]
+jobs:
+  empty-job:
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - run: exit 0
