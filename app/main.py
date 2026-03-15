@@ -1,6 +1,10 @@
 from fastapi import FastAPI
+from app.presentation.api.routes import include_routers
 
 app = FastAPI(title="COLLAB Backend", version="1.0.0")
+
+# Include all routers
+include_routers(app)
 
 
 @app.get("/")
