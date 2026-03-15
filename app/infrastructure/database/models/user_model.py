@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from datetime import datetime, timezone
 from uuid import uuid4
 import enum
 
@@ -24,7 +24,7 @@ class UserModel(Base):
     display_name = Column(String(255), nullable=True)
     role = Column(SQLEnum(UserRole), default=UserRole.CUSTOMER, nullable=False)
     is_influencer = Column(Boolean, default=False, nullable=False)
-    tags = Column(Text, nullable=True)  # JSON stored as text
+    tags = Column(ARRAY(String), nullable=True)  # PostgreSQL ARRAY type
     can_request_service = Column(Boolean, default=True, nullable=False)
     can_fulfill_service = Column(Boolean, default=False, nullable=False)
     bio = Column(Text, nullable=True)
@@ -34,7 +34,7 @@ class UserModel(Base):
     facebook_link = Column(String(500), nullable=True)
     other_link = Column(String(500), nullable=True)
     what_to_expect = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 class AuthCredentialsModel(Base):
@@ -44,4 +44,4 @@ class AuthCredentialsModel(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

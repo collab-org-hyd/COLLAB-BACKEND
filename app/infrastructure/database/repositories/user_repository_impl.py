@@ -31,8 +31,6 @@ class UserRepositoryImpl(UserRepository):
     
     async def create(self, user: User) -> User:
         """Create a new user"""
-        tags_str = ",".join(user.tags) if user.tags else None
-        
         user_model = UserModel(
             id=user.id,
             username=user.username,
@@ -40,7 +38,7 @@ class UserRepositoryImpl(UserRepository):
             display_name=user.display_name,
             role=user.role,
             is_influencer=user.is_influencer,
-            tags=tags_str,
+            tags=user.tags,  # Store as JSON array
             can_request_service=user.can_request_service,
             can_fulfill_service=user.can_fulfill_service,
             bio=user.bio,
@@ -63,14 +61,12 @@ class UserRepositoryImpl(UserRepository):
         if not user_model:
             raise ValueError(f"User with id {user.id} not found")
         
-        tags_str = ",".join(user.tags) if user.tags else None
-        
         user_model.username = user.username
         user_model.email = user.email
         user_model.display_name = user.display_name
         user_model.role = user.role
         user_model.is_influencer = user.is_influencer
-        user_model.tags = tags_str
+        user_model.tags = user.tags  # Store as JSON array
         user_model.can_request_service = user.can_request_service
         user_model.can_fulfill_service = user.can_fulfill_service
         user_model.bio = user.bio
@@ -98,7 +94,6 @@ class UserRepositoryImpl(UserRepository):
     @staticmethod
     def _model_to_entity(user_model: UserModel) -> User:
         """Convert UserModel to User entity"""
-        tags = user_model.tags.split(",") if user_model.tags else []
         return User(
             id=user_model.id,
             username=user_model.username,
@@ -106,7 +101,7 @@ class UserRepositoryImpl(UserRepository):
             display_name=user_model.display_name,
             role=UserRole(user_model.role.value),
             is_influencer=user_model.is_influencer,
-            tags=tags,
+            tags=user_model.tags or [],  # Already a list from JSON
             can_request_service=user_model.can_request_service,
             can_fulfill_service=user_model.can_fulfill_service,
             bio=user_model.bio,
