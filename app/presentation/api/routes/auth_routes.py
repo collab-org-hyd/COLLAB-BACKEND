@@ -97,13 +97,14 @@ async def validate_email(
     """
     # Validate email format
     if not is_valid_email(email):
-        return create_email_response(False, "Invalid email format", email)
+        return create_email_response(False, "Invalid email format")
     
     # Check if email exists in database
     user_repo = UserRepositoryImpl(db)
     user = await user_repo.get_by_email(email)
     
     email_exists = user is not None
+    email = user.email if email_exists else None
     message = "Email exists" if email_exists else "Email does not exist"
     
     return create_email_response(email_exists, message, email)

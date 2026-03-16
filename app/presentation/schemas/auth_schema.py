@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
 
 class LoginRequest(BaseModel):
@@ -49,4 +50,4 @@ class ValidateEmailResponse(BaseModel):
     """Response schema for email validation"""
     status: bool = Field(..., description="Whether email exists in database")
     message: str = Field(..., description="Response message")
-    data: ValidateEmailData = Field(..., description="Response data")
+    data: Optional[ValidateEmailData] = Field(None, description="Response data")

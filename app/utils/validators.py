@@ -10,10 +10,10 @@ def is_valid_email(email: str) -> bool:
     return bool(re.match(EMAIL_PATTERN, email))
 
 
-def create_email_response(status: bool, message: str, email: str) -> ValidateEmailResponse:
+def create_email_response(status: bool, message: str, email: str = None) -> ValidateEmailResponse:
     """Create email validation response"""
     return ValidateEmailResponse(
         status=status,
         message=message,
-        data={"emailId": email},
+        data={"emailId": email} if email else None,
     )
