@@ -33,3 +33,20 @@ class RegisterResponse(BaseModel):
     username: str
     email: str
     message: str
+
+
+class ValidateEmailRequest(BaseModel):
+    """Request schema for email validation"""
+    email: EmailStr = Field(..., description="Email to validate")
+
+
+class ValidateEmailData(BaseModel):
+    """Data object for email validation response"""
+    emailId: str = Field(..., description="Email being validated")
+
+
+class ValidateEmailResponse(BaseModel):
+    """Response schema for email validation"""
+    status: bool = Field(..., description="Whether email exists in database")
+    message: str = Field(..., description="Response message")
+    data: ValidateEmailData = Field(..., description="Response data")

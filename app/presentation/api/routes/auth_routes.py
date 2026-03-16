@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
+from app.utils.validators import is_valid_email, create_email_response
 from app.presentation.schemas.auth_schema import (
     LoginRequest,
     LoginResponse,
     RegisterRequest,
     RegisterResponse,
+    ValidateEmailRequest,
+    ValidateEmailResponse,
 )
 from app.application.use_cases.user.login_user import LoginUseCase, CreateUserUseCase
 from app.infrastructure.database.repositories.user_repository_impl import (
@@ -80,3 +83,27 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.get("/validate-email", response_model=ValidateEmailResponse, status_code=status.HTTP_200_OK)
+async def validate_email(
+    email: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Validate if email exists in database
+    
+    - **email**: Email to validate (query parameter)
+    """
+    # Validate email format
+    if not is_valid_email(email):
+        return create_email_response(False, "Invalid email format", email)
+    
+    # Check if email exists in database
+    user_repo = UserRepositoryImpl(db)
+    user = await user_repo.get_by_email(email)
+    
+    email_exists = user is not None
+    message = "Email exists" if email_exists else "Email does not exist"
+    
+    return create_email_response(email_exists, message, email)
