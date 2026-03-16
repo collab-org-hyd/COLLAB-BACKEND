@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = True
     
+    # CORS - For development with Flutter on localhost (any port)
+    # Default allows all localhost ports. For production, set specific origins via CORS_ORIGINS env var
+    cors_origins: str = os.environ.get("CORS_ORIGINS", "*")
+    
     model_config = ConfigDict(
         env_file=".env",
         case_sensitive=False,
