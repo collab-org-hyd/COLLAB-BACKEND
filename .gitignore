@@ -1,0 +1,11 @@
+.venv
+.pyc
+__pycache__
+.DS_Store
+.idea
+*.log
+*.sqlite3
+*.env
+*.egg-info
+dist
+sensitive_scripts
