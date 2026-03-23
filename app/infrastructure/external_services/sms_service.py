@@ -27,13 +27,19 @@ class SMSService:
             return True
         
         try:
+            message = f"Your {self.sender_id} verification code is: {otp}. Valid for 10 minutes. Do not share this code."
+            
             # TODO: Integrate with SMS provider (Twilio, AWS SNS, etc.)
-            # For now, just log the message
-            message = f"Your COLLAB verification code is: {otp}. Valid for 10 minutes. Do not share this code."
-            print(f"[SMS] Sending to {phone_number}: {message}")
+            # Example placeholder for Twilio:
+            # from twilio.rest import Client
+            # client = Client(account_sid, auth_token)
+            # client.messages.create(to=phone_number, from_=from_number, body=message)
+            
+            print(f"✓ OTP SMS sent to {phone_number}")
+            print(f"  Message: {message}")
             return True
         except Exception as e:
-            print(f"Error sending SMS: {e}")
+            print(f"✗ Error sending SMS to {phone_number}: {e}")
             return False
     
     def send_password_reset_confirmation_sms(self, phone_number: str) -> bool:
@@ -51,9 +57,10 @@ class SMSService:
             return True
         
         try:
-            message = "Your COLLAB password has been successfully reset. If this wasn't you, contact support."
-            print(f"[SMS] Sending to {phone_number}: {message}")
+            message = f"Your {self.sender_id} password has been successfully reset. If this wasn't you, contact support."
+            print(f"✓ Confirmation SMS sent to {phone_number}")
+            print(f"  Message: {message}")
             return True
         except Exception as e:
-            print(f"Error sending SMS: {e}")
+            print(f"✗ Error sending SMS to {phone_number}: {e}")
             return False

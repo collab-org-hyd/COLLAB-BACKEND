@@ -9,12 +9,13 @@ from email.mime.multipart import MIMEMultipart
 class EmailService:
     """Service to send emails (OTPs, notifications, etc.)"""
     
-    def __init__(self, smtp_server: str = "smtp.gmail.com", smtp_port: int = 587, sender_email: Optional[str] = None, sender_password: Optional[str] = None):
+    def __init__(self, smtp_server: str = "smtp.gmail.com", smtp_port: int = 587, sender_email: Optional[str] = None, sender_password: Optional[str] = None, sender_name: str = "COLLAB"):
         """Initialize email service with SMTP configuration"""
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
         self.sender_email = sender_email
         self.sender_password = sender_password
+        self.sender_name = sender_name
     
     def send_otp_email(self, recipient_email: str, otp: str, user_name: Optional[str] = None) -> bool:
         """
@@ -28,6 +29,7 @@ class EmailService:
         Returns:
             True if email sent successfully, False otherwise
         """
+        # If no credentials, log to console for testing
         if not self.sender_email or not self.sender_password:
             print(f"[Mock Email] OTP for {recipient_email}: {otp}")
             return True
@@ -38,7 +40,7 @@ class EmailService:
             
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
-            message["From"] = self.sender_email
+            message["From"] = f"{self.sender_name} <{self.sender_email}>"
             message["To"] = recipient_email
             
             message.attach(MIMEText(body, "html"))
@@ -48,9 +50,10 @@ class EmailService:
                 server.login(self.sender_email, self.sender_password)
                 server.sendmail(self.sender_email, recipient_email, message.as_string())
             
+            print(f"✓ OTP email sent to {recipient_email}")
             return True
         except Exception as e:
-            print(f"Error sending email: {e}")
+            print(f"✗ Error sending email to {recipient_email}: {e}")
             return False
     
     def send_password_reset_confirmation(self, recipient_email: str, user_name: Optional[str] = None) -> bool:
@@ -74,7 +77,7 @@ class EmailService:
             
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
-            message["From"] = self.sender_email
+            message["From"] = f"{self.sender_name} <{self.sender_email}>"
             message["To"] = recipient_email
             
             message.attach(MIMEText(body, "html"))
@@ -84,9 +87,10 @@ class EmailService:
                 server.login(self.sender_email, self.sender_password)
                 server.sendmail(self.sender_email, recipient_email, message.as_string())
             
+            print(f"✓ Confirmation email sent to {recipient_email}")
             return True
         except Exception as e:
-            print(f"Error sending email: {e}")
+            print(f"✗ Error sending confirmation email to {recipient_email}: {e}")
             return False
     
     @staticmethod

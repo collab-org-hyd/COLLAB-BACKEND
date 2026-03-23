@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
+from app.config.settings import settings
 from app.utils.validators import is_valid_email, create_email_response
 from app.presentation.schemas.auth_schema import (
     LoginRequest,
@@ -51,8 +52,17 @@ async def get_create_user_use_case(db: Session = Depends(get_db)) -> CreateUserU
 async def get_forgot_password_otp_use_case(db: Session = Depends(get_db)) -> ForgotPasswordRequestOTPUseCase:
     """Dependency to get forgot password OTP use case"""
     user_repo = UserRepositoryImpl(db)
-    email_service = EmailService()
-    sms_service = SMSService()
+    email_service = EmailService(
+        smtp_server=settings.smtp_server,
+        smtp_port=settings.smtp_port,
+        sender_email=settings.sender_email,
+        sender_password=settings.sender_password,
+        sender_name=settings.sender_name
+    )
+    sms_service = SMSService(
+        api_key=settings.sms_api_key,
+        sender_id=settings.sms_sender_id
+    )
     return ForgotPasswordRequestOTPUseCase(user_repo, email_service, sms_service)
 
 
@@ -65,8 +75,17 @@ async def get_verify_otp_use_case(db: Session = Depends(get_db)) -> VerifyOTPUse
 async def get_reset_password_use_case(db: Session = Depends(get_db)) -> ResetPasswordUseCase:
     """Dependency to get reset password use case"""
     user_repo = UserRepositoryImpl(db)
-    email_service = EmailService()
-    sms_service = SMSService()
+    email_service = EmailService(
+        smtp_server=settings.smtp_server,
+        smtp_port=settings.smtp_port,
+        sender_email=settings.sender_email,
+        sender_password=settings.sender_password,
+        sender_name=settings.sender_name
+    )
+    sms_service = SMSService(
+        api_key=settings.sms_api_key,
+        sender_id=settings.sms_sender_id
+    )
     return ResetPasswordUseCase(user_repo, email_service, sms_service)
 
 
