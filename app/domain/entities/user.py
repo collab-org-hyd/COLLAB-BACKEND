@@ -18,6 +18,7 @@ class User:
     id: UUID
     username: str
     email: str
+    phone_number: Optional[str] = None
     display_name: Optional[str] = None
     role: UserRole = UserRole.CUSTOMER
     is_influencer: bool = False

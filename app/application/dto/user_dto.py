@@ -8,6 +8,7 @@ class UserCreateDTO(BaseModel):
     """DTO for creating a user"""
     username: str
     email: EmailStr
+    phone_number: Optional[str] = None
     display_name: Optional[str] = None
     role: str = "customer"
     bio: Optional[str] = None
@@ -18,6 +19,7 @@ class UserResponseDTO(BaseModel):
     id: UUID
     username: str
     email: str
+    phone_number: Optional[str] = None
     display_name: Optional[str] = None
     role: str
     is_influencer: bool

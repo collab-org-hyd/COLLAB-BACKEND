@@ -21,6 +21,7 @@ class UserModel(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
+    phone_number = Column(String(20), nullable=True)
     display_name = Column(String(255), nullable=True)
     role = Column(SQLEnum(UserRole), default=UserRole.CUSTOMER, nullable=False)
     is_influencer = Column(Boolean, default=False, nullable=False)
