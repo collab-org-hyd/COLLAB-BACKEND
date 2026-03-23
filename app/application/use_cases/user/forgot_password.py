@@ -3,6 +3,8 @@
 from typing import Dict, Optional
 from app.domain.repositories.user_repository import UserRepository
 from app.infrastructure.external_services.otp_service import OTPService
+from app.infrastructure.external_services.email_service import EmailService
+from app.infrastructure.external_services.sms_service import SMSService
 from app.core.exceptions import (
     ResourceNotFoundError,
     BadRequestError,
@@ -15,9 +17,11 @@ import hashlib
 class ForgotPasswordRequestOTPUseCase:
     """Use case to request OTP for password reset"""
     
-    def __init__(self, user_repository: UserRepository):
+    def __init__(self, user_repository: UserRepository, email_service: Optional[EmailService] = None, sms_service: Optional[SMSService] = None):
         self.user_repository = user_repository
         self.otp_service = OTPService()
+        self.email_service = email_service or EmailService()
+        self.sms_service = sms_service or SMSService()
     
     async def execute(self, email: Optional[str] = None, phone_number: Optional[str] = None) -> Dict:
         """
@@ -49,14 +53,20 @@ class ForgotPasswordRequestOTPUseCase:
         # Generate OTP
         otp = self.otp_service.generate_otp(identifier)
         
-        # TODO: Send OTP via email or SMS
-        # For now, just storing in memory
+        # Send OTP via email or SMS
+        sent_successfully = False
+        if email:
+            sent_successfully = self.email_service.send_otp_email(email, otp, user.display_name or user.username)
+        elif phone_number:
+            sent_successfully = self.sms_service.send_otp_sms(phone_number, otp)
+        
+        if not sent_successfully:
+            raise BadRequestError("Failed to send OTP. Please try again.")
         
         return {
             "success": True,
             "message": f"OTP sent to {identifier}",
-            "identifier": identifier,
-            "otp": otp  # Remove this in production - only for testing
+            "identifier": identifier
         }
 
 
@@ -101,9 +111,11 @@ class VerifyOTPUseCase:
 class ResetPasswordUseCase:
     """Use case to reset password after OTP verification"""
     
-    def __init__(self, user_repository: UserRepository):
+    def __init__(self, user_repository: UserRepository, email_service: Optional[EmailService] = None, sms_service: Optional[SMSService] = None):
         self.user_repository = user_repository
         self.otp_service = OTPService()
+        self.email_service = email_service or EmailService()
+        self.sms_service = sms_service or SMSService()
     
     async def execute(self, identifier: str, new_password: str, reset_token: str) -> Dict:
         """
@@ -136,6 +148,12 @@ class ResetPasswordUseCase:
         
         # Update password in auth credentials
         await self.user_repository.update_password(user.id, password_hash)
+        
+        # Send confirmation email or SMS
+        if "@" in identifier:  # Email
+            self.email_service.send_password_reset_confirmation(identifier, user.display_name or user.username)
+        else:  # Phone
+            self.sms_service.send_password_reset_confirmation_sms(identifier)
         
         # Clear OTP
         self.otp_service.clear_otp(identifier)

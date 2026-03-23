@@ -27,6 +27,8 @@ from app.infrastructure.database.repositories.user_repository_impl import (
     UserRepositoryImpl,
     AuthCredentialsRepositoryImpl,
 )
+from app.infrastructure.external_services.email_service import EmailService
+from app.infrastructure.external_services.sms_service import SMSService
 from app.core.exceptions import ResourceNotFoundError, BadRequestError, AuthenticationError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -49,7 +51,9 @@ async def get_create_user_use_case(db: Session = Depends(get_db)) -> CreateUserU
 async def get_forgot_password_otp_use_case(db: Session = Depends(get_db)) -> ForgotPasswordRequestOTPUseCase:
     """Dependency to get forgot password OTP use case"""
     user_repo = UserRepositoryImpl(db)
-    return ForgotPasswordRequestOTPUseCase(user_repo)
+    email_service = EmailService()
+    sms_service = SMSService()
+    return ForgotPasswordRequestOTPUseCase(user_repo, email_service, sms_service)
 
 
 async def get_verify_otp_use_case(db: Session = Depends(get_db)) -> VerifyOTPUseCase:
@@ -61,7 +65,9 @@ async def get_verify_otp_use_case(db: Session = Depends(get_db)) -> VerifyOTPUse
 async def get_reset_password_use_case(db: Session = Depends(get_db)) -> ResetPasswordUseCase:
     """Dependency to get reset password use case"""
     user_repo = UserRepositoryImpl(db)
-    return ResetPasswordUseCase(user_repo)
+    email_service = EmailService()
+    sms_service = SMSService()
+    return ResetPasswordUseCase(user_repo, email_service, sms_service)
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
