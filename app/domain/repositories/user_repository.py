@@ -23,6 +23,21 @@ class UserRepository(ABC):
         pass
     
     @abstractmethod
+    async def find_by_phone(self, phone_number: str) -> Optional[User]:
+        """Get user by phone number"""
+        pass
+    
+    @abstractmethod
+    async def find_by_email(self, email: str) -> Optional[User]:
+        """Get user by email (alternative method name)"""
+        pass
+    
+    @abstractmethod
+    async def update_password(self, user_id: UUID, password_hash: str) -> bool:
+        """Update user password"""
+        pass
+    
+    @abstractmethod
     async def create(self, user: User) -> User:
         """Create a new user"""
         pass
