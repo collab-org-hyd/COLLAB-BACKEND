@@ -55,28 +55,19 @@ class ValidateEmailResponse(BaseModel):
 
 class ForgotPasswordRequestOTPRequest(BaseModel):
     """Request schema for forgot password OTP request"""
-    email: Optional[EmailStr] = Field(None, description="User email")
-    phone_number: Optional[str] = Field(None, description="User phone number")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "email": "user@example.com"
-            }
-        }
+    email: EmailStr = Field(..., description="User email")
 
 
 class ForgotPasswordRequestOTPResponse(BaseModel):
     """Response schema for forgot password OTP request"""
     success: bool
     message: str
-    identifier: str  # email or phone that OTP was sent to
+    identifier: str  # email
 
 
 class VerifyOTPRequest(BaseModel):
     """Request schema for OTP verification"""
-    email: Optional[EmailStr] = Field(None, description="User email")
-    phone_number: Optional[str] = Field(None, description="User phone number")
+    email: EmailStr = Field(..., description="User email")
     otp: str = Field(..., min_length=6, max_length=6, description="OTP code")
 
 
@@ -89,8 +80,7 @@ class VerifyOTPResponse(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     """Request schema for password reset"""
-    email: Optional[EmailStr] = Field(None, description="User email")
-    phone_number: Optional[str] = Field(None, description="User phone number")
+    email: EmailStr = Field(..., description="User email")
     new_password: str = Field(..., min_length=6, description="New password")
     reset_token: str = Field(..., description="Reset token from OTP verification")
 

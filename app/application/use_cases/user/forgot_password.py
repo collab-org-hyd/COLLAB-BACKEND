@@ -4,69 +4,54 @@ from typing import Dict, Optional
 from app.domain.repositories.user_repository import UserRepository
 from app.infrastructure.external_services.otp_service import OTPService
 from app.infrastructure.external_services.email_service import EmailService
-from app.infrastructure.external_services.sms_service import SMSService
 from app.core.exceptions import (
     ResourceNotFoundError,
     BadRequestError,
     AuthenticationError
 )
-import secrets
 import hashlib
 
 
 class ForgotPasswordRequestOTPUseCase:
     """Use case to request OTP for password reset"""
     
-    def __init__(self, user_repository: UserRepository, email_service: Optional[EmailService] = None, sms_service: Optional[SMSService] = None):
+    def __init__(self, user_repository: UserRepository, email_service: Optional[EmailService] = None):
         self.user_repository = user_repository
         self.otp_service = OTPService()
         self.email_service = email_service or EmailService()
-        self.sms_service = sms_service or SMSService()
     
-    async def execute(self, email: Optional[str] = None, phone_number: Optional[str] = None) -> Dict:
+    async def execute(self, email: str) -> Dict:
         """
         Request OTP for password reset
         
         Args:
-            email: User email (either email or phone_number must be provided)
-            phone_number: User phone number (either email or phone_number must be provided)
+            email: User email
             
         Returns:
             Dict with success status, message, and identifier
         """
-        if not email and not phone_number:
-            raise BadRequestError("Either email or phone_number must be provided")
+        if not email:
+            raise BadRequestError("Email is required")
         
-        # Determine identifier
-        identifier = email or phone_number
-        
-        # Check if user exists with this email or phone
-        user = None
-        if email:
-            user = await self.user_repository.find_by_email(email)
-        elif phone_number:
-            user = await self.user_repository.find_by_phone(phone_number)
+        # Check if user exists with this email
+        user = await self.user_repository.find_by_email(email)
         
         if not user:
             raise ResourceNotFoundError("User not found")
         
         # Generate OTP
-        otp = self.otp_service.generate_otp(identifier)
+        otp = self.otp_service.generate_otp(email)
         
-        # Send OTP via email or SMS
-        sent_successfully = False
-        if email:
-            sent_successfully = self.email_service.send_otp_email(email, otp, user.display_name or user.username)
-        elif phone_number:
-            sent_successfully = self.sms_service.send_otp_sms(phone_number, otp)
+        # Send OTP via email
+        sent_successfully = self.email_service.send_otp_email(email, otp, user.display_name or user.username)
         
         if not sent_successfully:
             raise BadRequestError("Failed to send OTP. Please try again.")
         
         return {
             "success": True,
-            "message": f"OTP sent to {identifier}",
-            "identifier": identifier
+            "message": f"OTP sent to {email}",
+            "identifier": email
         }
 
 
@@ -111,18 +96,17 @@ class VerifyOTPUseCase:
 class ResetPasswordUseCase:
     """Use case to reset password after OTP verification"""
     
-    def __init__(self, user_repository: UserRepository, email_service: Optional[EmailService] = None, sms_service: Optional[SMSService] = None):
+    def __init__(self, user_repository: UserRepository, email_service: Optional[EmailService] = None):
         self.user_repository = user_repository
         self.otp_service = OTPService()
         self.email_service = email_service or EmailService()
-        self.sms_service = sms_service or SMSService()
     
-    async def execute(self, identifier: str, new_password: str, reset_token: str) -> Dict:
+    async def execute(self, email: str, new_password: str, reset_token: str) -> Dict:
         """
         Reset password after OTP verification
         
         Args:
-            identifier: Email or phone number
+            email: User email
             new_password: New password
             reset_token: Reset token from OTP verification
             
@@ -130,15 +114,11 @@ class ResetPasswordUseCase:
             Dict with success status and message
         """
         # Check if OTP was verified
-        if not self.otp_service.is_otp_verified(identifier):
+        if not self.otp_service.is_otp_verified(email):
             raise AuthenticationError("OTP not verified. Please verify OTP first.")
         
-        # Find user by email or phone
-        user = None
-        if "@" in identifier:  # Email
-            user = await self.user_repository.find_by_email(identifier)
-        else:  # Phone
-            user = await self.user_repository.find_by_phone(identifier)
+        # Find user by email
+        user = await self.user_repository.find_by_email(email)
         
         if not user:
             raise ResourceNotFoundError("User not found")
@@ -149,14 +129,11 @@ class ResetPasswordUseCase:
         # Update password in auth credentials
         await self.user_repository.update_password(user.id, password_hash)
         
-        # Send confirmation email or SMS
-        if "@" in identifier:  # Email
-            self.email_service.send_password_reset_confirmation(identifier, user.display_name or user.username)
-        else:  # Phone
-            self.sms_service.send_password_reset_confirmation_sms(identifier)
+        # Send confirmation email
+        self.email_service.send_password_reset_confirmation(email, user.display_name or user.username)
         
         # Clear OTP
-        self.otp_service.clear_otp(identifier)
+        self.otp_service.clear_otp(email)
         
         return {
             "success": True,

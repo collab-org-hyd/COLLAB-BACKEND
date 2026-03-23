@@ -29,7 +29,6 @@ from app.infrastructure.database.repositories.user_repository_impl import (
     AuthCredentialsRepositoryImpl,
 )
 from app.infrastructure.external_services.email_service import EmailService
-from app.infrastructure.external_services.sms_service import SMSService
 from app.core.exceptions import ResourceNotFoundError, BadRequestError, AuthenticationError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -59,11 +58,7 @@ async def get_forgot_password_otp_use_case(db: Session = Depends(get_db)) -> For
         sender_password=settings.sender_password,
         sender_name=settings.sender_name
     )
-    sms_service = SMSService(
-        api_key=settings.sms_api_key,
-        sender_id=settings.sms_sender_id
-    )
-    return ForgotPasswordRequestOTPUseCase(user_repo, email_service, sms_service)
+    return ForgotPasswordRequestOTPUseCase(user_repo, email_service)
 
 
 async def get_verify_otp_use_case(db: Session = Depends(get_db)) -> VerifyOTPUseCase:
@@ -82,11 +77,7 @@ async def get_reset_password_use_case(db: Session = Depends(get_db)) -> ResetPas
         sender_password=settings.sender_password,
         sender_name=settings.sender_name
     )
-    sms_service = SMSService(
-        api_key=settings.sms_api_key,
-        sender_id=settings.sms_sender_id
-    )
-    return ResetPasswordUseCase(user_repo, email_service, sms_service)
+    return ResetPasswordUseCase(user_repo, email_service)
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
@@ -171,18 +162,12 @@ async def request_forgot_password_otp(
     use_case: ForgotPasswordRequestOTPUseCase = Depends(get_forgot_password_otp_use_case),
 ):
     """
-    Request OTP for password reset via email or phone
+    Request OTP for password reset via email
     
-    - **email**: User email (optional)
-    - **phone_number**: User phone number (optional)
-    
-    Either email or phone_number must be provided
+    - **email**: User email
     """
     try:
-        result = await use_case.execute(
-            email=request.email,
-            phone_number=request.phone_number
-        )
+        result = await use_case.execute(email=request.email)
         return ForgotPasswordRequestOTPResponse(
             success=result.get("success"),
             message=result.get("message"),
@@ -208,16 +193,11 @@ async def verify_forgot_password_otp(
     """
     Verify OTP for password reset
     
-    - **email**: User email (optional)
-    - **phone_number**: User phone number (optional)
+    - **email**: User email
     - **otp**: 6-digit OTP code
     """
     try:
-        identifier = request.email or request.phone_number
-        if not identifier:
-            raise BadRequestError("Either email or phone_number must be provided")
-        
-        result = await use_case.execute(identifier, request.otp)
+        result = await use_case.execute(request.email, request.otp)
         return VerifyOTPResponse(
             success=result.get("success"),
             message=result.get("message"),
@@ -226,11 +206,6 @@ async def verify_forgot_password_otp(
     except AuthenticationError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        )
-    except BadRequestError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
 
@@ -243,18 +218,13 @@ async def reset_password(
     """
     Reset password after OTP verification
     
-    - **email**: User email (optional)
-    - **phone_number**: User phone number (optional)
+    - **email**: User email
     - **new_password**: New password (min 6 characters)
     - **reset_token**: Token from OTP verification
     """
     try:
-        identifier = request.email or request.phone_number
-        if not identifier:
-            raise BadRequestError("Either email or phone_number must be provided")
-        
         result = await use_case.execute(
-            identifier=identifier,
+            email=request.email,
             new_password=request.new_password,
             reset_token=request.reset_token
         )
