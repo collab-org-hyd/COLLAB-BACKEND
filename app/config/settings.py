@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     # Default allows all localhost ports. For production, set specific origins via CORS_ORIGINS env var
     cors_origins: str = os.environ.get("CORS_ORIGINS", "*")
     
+    # Email Configuration
+    smtp_server: str = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port: int = int(os.environ.get("SMTP_PORT", 587))
+    sender_email: str = os.environ.get("SENDER_EMAIL", "")
+    sender_password: str = os.environ.get("SENDER_PASSWORD", "")
+    sender_name: str = os.environ.get("SENDER_NAME", "COLLAB")
+    
+    # SMS Configuration
+    sms_api_key: str = os.environ.get("SMS_API_KEY", "")
+    sms_sender_id: str = os.environ.get("SMS_SENDER_ID", "COLLAB")
+    
     model_config = ConfigDict(
         env_file=".env",
         case_sensitive=False,

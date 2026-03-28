@@ -35,6 +35,7 @@ class UserRepositoryImpl(UserRepository):
             id=user.id,
             username=user.username,
             email=user.email,
+            phone_number=user.phone_number,
             display_name=user.display_name,
             role=user.role,
             is_influencer=user.is_influencer,
@@ -63,6 +64,7 @@ class UserRepositoryImpl(UserRepository):
         
         user_model.username = user.username
         user_model.email = user.email
+        user_model.phone_number = user.phone_number
         user_model.display_name = user.display_name
         user_model.role = user.role
         user_model.is_influencer = user.is_influencer
@@ -91,6 +93,27 @@ class UserRepositoryImpl(UserRepository):
         self.db.commit()
         return True
     
+    async def find_by_phone(self, phone_number: str) -> Optional[User]:
+        """Get user by phone number"""
+        user_model = self.db.query(UserModel).filter(UserModel.phone_number == phone_number).first()
+        return self._model_to_entity(user_model) if user_model else None
+    
+    async def find_by_email(self, email: str) -> Optional[User]:
+        """Get user by email (alternative method name)"""
+        return await self.get_by_email(email)
+    
+    async def update_password(self, user_id: UUID, password_hash: str) -> bool:
+        """Update user password via auth credentials"""
+        creds_model = self.db.query(AuthCredentialsModel).filter(
+            AuthCredentialsModel.user_id == user_id
+        ).first()
+        if not creds_model:
+            return False
+        
+        creds_model.password_hash = password_hash
+        self.db.commit()
+        return True
+    
     @staticmethod
     def _model_to_entity(user_model: UserModel) -> User:
         """Convert UserModel to User entity"""
@@ -98,6 +121,7 @@ class UserRepositoryImpl(UserRepository):
             id=user_model.id,
             username=user_model.username,
             email=user_model.email,
+            phone_number=user_model.phone_number,
             display_name=user_model.display_name,
             role=UserRole(user_model.role.value),
             is_influencer=user_model.is_influencer,

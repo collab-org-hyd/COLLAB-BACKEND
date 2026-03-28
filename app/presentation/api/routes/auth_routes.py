@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
+from app.config.settings import settings
 from app.utils.validators import is_valid_email, create_email_response
 from app.presentation.schemas.auth_schema import (
     LoginRequest,
@@ -10,12 +11,25 @@ from app.presentation.schemas.auth_schema import (
     RegisterResponse,
     ValidateEmailRequest,
     ValidateEmailResponse,
+    ForgotPasswordRequestOTPRequest,
+    ForgotPasswordRequestOTPResponse,
+    VerifyOTPRequest,
+    VerifyOTPResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
 )
 from app.application.use_cases.user.login_user import LoginUseCase, CreateUserUseCase
+from app.application.use_cases.user.forgot_password import (
+    ForgotPasswordRequestOTPUseCase,
+    VerifyOTPUseCase,
+    ResetPasswordUseCase,
+)
 from app.infrastructure.database.repositories.user_repository_impl import (
     UserRepositoryImpl,
     AuthCredentialsRepositoryImpl,
 )
+from app.infrastructure.external_services.email_service import EmailService
+from app.core.exceptions import ResourceNotFoundError, BadRequestError, AuthenticationError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,6 +46,38 @@ async def get_create_user_use_case(db: Session = Depends(get_db)) -> CreateUserU
     user_repo = UserRepositoryImpl(db)
     auth_repo = AuthCredentialsRepositoryImpl(db)
     return CreateUserUseCase(user_repo, auth_repo)
+
+
+async def get_forgot_password_otp_use_case(db: Session = Depends(get_db)) -> ForgotPasswordRequestOTPUseCase:
+    """Dependency to get forgot password OTP use case"""
+    user_repo = UserRepositoryImpl(db)
+    email_service = EmailService(
+        smtp_server=settings.smtp_server,
+        smtp_port=settings.smtp_port,
+        sender_email=settings.sender_email,
+        sender_password=settings.sender_password,
+        sender_name=settings.sender_name
+    )
+    return ForgotPasswordRequestOTPUseCase(user_repo, email_service)
+
+
+async def get_verify_otp_use_case(db: Session = Depends(get_db)) -> VerifyOTPUseCase:
+    """Dependency to get verify OTP use case"""
+    user_repo = UserRepositoryImpl(db)
+    return VerifyOTPUseCase(user_repo)
+
+
+async def get_reset_password_use_case(db: Session = Depends(get_db)) -> ResetPasswordUseCase:
+    """Dependency to get reset password use case"""
+    user_repo = UserRepositoryImpl(db)
+    email_service = EmailService(
+        smtp_server=settings.smtp_server,
+        smtp_port=settings.smtp_port,
+        sender_email=settings.sender_email,
+        sender_password=settings.sender_password,
+        sender_name=settings.sender_name
+    )
+    return ResetPasswordUseCase(user_repo, email_service)
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
@@ -108,3 +154,92 @@ async def validate_email(
     message = "Email exists" if email_exists else "Email does not exist"
     
     return create_email_response(email_exists, message, email)
+
+
+@router.post("/forgot-password/request-otp", response_model=ForgotPasswordRequestOTPResponse, status_code=status.HTTP_200_OK)
+async def request_forgot_password_otp(
+    request: ForgotPasswordRequestOTPRequest,
+    use_case: ForgotPasswordRequestOTPUseCase = Depends(get_forgot_password_otp_use_case),
+):
+    """
+    Request OTP for password reset via email
+    
+    - **email**: User email
+    """
+    try:
+        result = await use_case.execute(email=request.email)
+        return ForgotPasswordRequestOTPResponse(
+            success=result.get("success"),
+            message=result.get("message"),
+            identifier=result.get("identifier")
+        )
+    except ResourceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except BadRequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post("/forgot-password/verify-otp", response_model=VerifyOTPResponse, status_code=status.HTTP_200_OK)
+async def verify_forgot_password_otp(
+    request: VerifyOTPRequest,
+    use_case: VerifyOTPUseCase = Depends(get_verify_otp_use_case),
+):
+    """
+    Verify OTP for password reset
+    
+    - **email**: User email
+    - **otp**: 6-digit OTP code
+    """
+    try:
+        result = await use_case.execute(request.email, request.otp)
+        return VerifyOTPResponse(
+            success=result.get("success"),
+            message=result.get("message"),
+            token=result.get("reset_token")
+        )
+    except AuthenticationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+
+
+@router.post("/forgot-password/reset", response_model=ResetPasswordResponse, status_code=status.HTTP_200_OK)
+async def reset_password(
+    request: ResetPasswordRequest,
+    use_case: ResetPasswordUseCase = Depends(get_reset_password_use_case),
+):
+    """
+    Reset password after OTP verification
+    
+    - **email**: User email
+    - **new_password**: New password (min 6 characters)
+    - **reset_token**: Token from OTP verification
+    """
+    try:
+        result = await use_case.execute(
+            email=request.email,
+            new_password=request.new_password,
+            reset_token=request.reset_token
+        )
+        return ResetPasswordResponse(
+            success=result.get("success"),
+            message=result.get("message"),
+            user_id=result.get("user_id")
+        )
+    except (AuthenticationError, ResourceNotFoundError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+    except BadRequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
