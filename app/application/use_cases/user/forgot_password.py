@@ -1,7 +1,7 @@
 """Use case for forgot password flow"""
 
 from typing import Dict, Optional
-from app.domain.repositories.user_repository import UserRepository
+from app.domain.repositories.user_repository import UserRepository, AuthCredentialsRepository
 from app.infrastructure.external_services.otp_service import OTPService
 from app.infrastructure.external_services.email_service import EmailService
 from app.core.exceptions import (
@@ -9,6 +9,7 @@ from app.core.exceptions import (
     BadRequestError,
     AuthenticationError
 )
+from app.core.security import hash_password, verify_password
 import secrets
 import hashlib
 
@@ -139,5 +140,65 @@ class ResetPasswordUseCase:
         return {
             "success": True,
             "message": "Password reset successfully",
+            "user_id": str(user.id)
+        }
+
+
+class ResetPasswordDirectUseCase:
+    """
+    Use case to reset password without OTP (for debugging - NO password verification)
+    
+    ⚠️  DEPRECATED: This is for testing/debugging only. Allows password reset without 
+    verifying current password. Should NEVER be used in production.
+    """
+    
+    def __init__(self, user_repository: UserRepository, auth_repository: AuthCredentialsRepository, email_service: Optional[EmailService] = None):
+        self.user_repository = user_repository
+        self.auth_repository = auth_repository
+        self.email_service = email_service or EmailService()
+    
+    async def execute(self, email: str, new_password: str) -> Dict:
+        """
+        Reset password without OTP verification or current password check.
+        
+        ⚠️  WARNING: This function is for debugging/testing only. It bypasses all 
+        security checks. Remove before production deployment.
+        
+        Args:
+            email: User email
+            new_password: New password
+            
+        Returns:
+            Dict with success status and message
+        """
+        if not email:
+            raise BadRequestError("Email is required")
+        
+        if not new_password:
+            raise BadRequestError("New password is required")
+        
+        # Find user by email
+        user = await self.user_repository.find_by_email(email)
+        
+        if not user:
+            raise ResourceNotFoundError("User not found")
+        
+        # Hash new password
+        password_hash = hash_password(new_password)
+        
+        # Update password in auth credentials
+        await self.user_repository.update_password(user.id, password_hash)
+        
+        # Try to send confirmation email (but don't fail if email service is broken)
+        if self.email_service:
+            try:
+                self.email_service.send_password_reset_confirmation(email, user.display_name or user.username)
+            except Exception:
+                # Continue even if email fails to send (since email is not working)
+                pass
+        
+        return {
+            "success": True,
+            "message": "Password reset successfully (DEBUG MODE - No verification required)",
             "user_id": str(user.id)
         }
