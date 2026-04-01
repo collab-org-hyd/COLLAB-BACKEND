@@ -90,3 +90,17 @@ class ResetPasswordResponse(BaseModel):
     success: bool
     message: str
     user_id: Optional[str] = None
+
+
+class ResetPasswordDirectRequest(BaseModel):
+    """Request schema for direct password reset (without OTP)"""
+    email: EmailStr = Field(..., description="User email")
+    new_password: str = Field(..., min_length=6, description="New password")
+
+
+class ResetPasswordDirectResponse(BaseModel):
+    """Response schema for direct password reset"""
+    success: bool
+    message: str
+    user_id: Optional[str] = None
+    warning: str = "DEPRECATED: This endpoint bypasses OTP verification and should only be used for debugging/testing"

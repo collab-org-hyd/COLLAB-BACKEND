@@ -17,12 +17,15 @@ from app.presentation.schemas.auth_schema import (
     VerifyOTPResponse,
     ResetPasswordRequest,
     ResetPasswordResponse,
+    ResetPasswordDirectRequest,
+    ResetPasswordDirectResponse,
 )
 from app.application.use_cases.user.login_user import LoginUseCase, CreateUserUseCase
 from app.application.use_cases.user.forgot_password import (
     ForgotPasswordRequestOTPUseCase,
     VerifyOTPUseCase,
     ResetPasswordUseCase,
+    ResetPasswordDirectUseCase,
 )
 from app.infrastructure.database.repositories.user_repository_impl import (
     UserRepositoryImpl,
@@ -78,6 +81,20 @@ async def get_reset_password_use_case(db: Session = Depends(get_db)) -> ResetPas
         sender_name=settings.sender_name
     )
     return ResetPasswordUseCase(user_repo, email_service)
+
+
+async def get_reset_password_direct_use_case(db: Session = Depends(get_db)) -> ResetPasswordDirectUseCase:
+    """Dependency to get reset password direct use case (without OTP)"""
+    user_repo = UserRepositoryImpl(db)
+    auth_repo = AuthCredentialsRepositoryImpl(db)
+    email_service = EmailService(
+        smtp_server=settings.smtp_server,
+        smtp_port=settings.smtp_port,
+        sender_email=settings.sender_email,
+        sender_password=settings.sender_password,
+        sender_name=settings.sender_name
+    )
+    return ResetPasswordDirectUseCase(user_repo, auth_repo, email_service)
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
@@ -229,6 +246,42 @@ async def reset_password(
             reset_token=request.reset_token
         )
         return ResetPasswordResponse(
+            success=result.get("success"),
+            message=result.get("message"),
+            user_id=result.get("user_id")
+        )
+    except (AuthenticationError, ResourceNotFoundError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+    except BadRequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post("/forgot-password/reset-direct", response_model=ResetPasswordDirectResponse, status_code=status.HTTP_200_OK)
+async def reset_password_direct(
+    request: ResetPasswordDirectRequest,
+    use_case: ResetPasswordDirectUseCase = Depends(get_reset_password_direct_use_case),
+):
+    """
+    ⚠️  DEPRECATED: Reset password without OTP or current password verification (DEBUG MODE ONLY)
+    
+    This endpoint is for debugging/testing only when email service is broken.
+    It bypasses all security checks and should NEVER be used in production.
+    
+    - **email**: User email
+    - **new_password**: New password (min 6 characters)
+    """
+    try:
+        result = await use_case.execute(
+            email=request.email,
+            new_password=request.new_password
+        )
+        return ResetPasswordDirectResponse(
             success=result.get("success"),
             message=result.get("message"),
             user_id=result.get("user_id")
